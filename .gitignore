@@ -1,0 +1,11 @@
+/bochs/
+/bochss/
+*.o
+*.bin
+bochs.out
+bochsout.txt
+bochsrc.conf
+img.img
+run.sh
+start.sh
+test.s
