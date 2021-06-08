@@ -4,4 +4,4 @@ clean:
 	rm *.o
 	
 main.o: main.c
-	gcc -c -m32 -o main.o main.c -masm=intel -O0
+	gcc -c -m32 -o main.o main.c -masm=intel
