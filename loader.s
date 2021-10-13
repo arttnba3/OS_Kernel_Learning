@@ -31,80 +31,18 @@ jmp loader_start
     SELECTOR_DATA equ (0x0002 << 3) + TI_GDT + RPL_RING0
     SELECTOR_VIDEO equ (0x0003 << 3) + TI_GDT + RPL_RING0
 
+    total_mem dd 0
+
     GDT_PTR     dw GDT_LIMIT
                 dd GDT_BASE                         ; little endian
 
-    ards_num dd 0x0
-    ards_array times 244 dq 0
-    total_mem dd 0
+    ards_array times 244 db 0
+    ards_num dw 0x0
 
-;------------- Some useless func -------------
-a3_print:                                          ; si: string addr; di:print start
-    mov al, [si]
-    mov byte [gs:di], al
-    inc di
-    mov byte [gs:di], 0xA4
-    inc di
-    inc si
-    cmp byte [si], 0
-    jnz a3_print
-    ret
-
-a3_num_print:                                      ; edx: num addr; di:print start
-    mov al, '0'
-    mov byte [gs:di], al
-    inc di
-    mov byte [gs:di], 0xA4
-    inc di
-    mov al, 'x'
-    mov byte [gs:di], al
-    inc di
-    mov byte [gs:di], 0xA4
-    inc di
-.num_loop:
-    mov eax, num_byte_count
-    inc byte [eax]
-    mov eax, edx
-    and eax, 0xf
-    cmp eax, 9
-    jg .byte_bigger_than_9
-    add al, '0'
-    push eax
-    jmp .check
-.byte_bigger_than_9:
-    sub al, 0xa
-    mov si, hex_num_arr
-    add si, ax
-    mov al, [si]
-    push eax
-.check:
-    shr edx, 4
-    cmp edx, 0
-    jnz .num_loop
-.print_num:
-    pop eax
-    mov byte [gs:di], al
-    inc di
-    mov byte [gs:di], 0xA4
-    inc di
-    mov eax, num_byte_count
-    dec byte [eax]
-    cmp byte [eax], 0
-    jnz .print_num
-    ret
+    loader_msg  db 'arttnba3', 0x0
 
 ;------------- loader programme -------------
-;;------------- print some words -------------
 loader_start:
-    mov sp, LOADER_BASE_ADDR
-    mov bp, loader_msg                          ; es:bp for the addr of msg (es is 0 now) 
-    mov cx, 8                                   ; length of loader_msg
-    mov ax, 0x1301                              ; ah=0x13 for print, al for attribute(01:characters only, change the cursor(00 not change))
-                                                ; other attributes in bl(00,01), or in msg(10,11)
-    mov bx, 0x001f                              ; bh:number of page, bl:attribute(1f blue bg, pink char)
-    mov dx, 0x1800                              ; (0,24)
-    int 0x10
-
 ;------------- Get the info of the memory -------------
 ;; 0xe820 func of int 0x15
     xor ebx, ebx                                ; set the ebx to 0
@@ -120,13 +58,6 @@ loader_start:
     cmp ebx, 0
     jnz .get_ards_loop
 
-    mov di, 24
-    mov edx, [ards_num]
-    call a3_num_print
-    
-    mov si, str_ards_found
-    call a3_print
-
 ;;;find the biggest ards for our os to use
     mov ecx, [ards_num]
     mov ebx, ards_array
@@ -140,13 +71,8 @@ loader_start:
     mov edx, eax
 .next_ards:
     loop .find_max
+
     mov [total_mem], edx
-    add edi, 2
-    mov esi, str_ards_max
-    call a3_print
-    mov dword esi, [total_mem]
-    add edi, 2
-    call a3_num_print
     jmp .protected_mode
 
 .get_mem_e801:
@@ -164,12 +90,6 @@ loader_start:
     mul ecx
     add esi, eax
     mov [total_mem], esi
-    add edi, 2
-    mov esi, str_total_men
-    call a3_print
-    mov dword edx, [total_mem]
-    add edi, 2
-    call a3_num_print
     jmp .protected_mode
 
 .get_mem_88:
@@ -183,20 +103,32 @@ loader_start:
     or edx, eax
     add edx, 0x100000
     mov dword [total_mem], edx
-    mov dword esi, [total_mem]
-    add edi, 2
-    call a3_num_print
     jmp .protected_mode
 
 .get_mem_failed:                                ; we finally failed, hang it on
-    add edi, 2
-    mov esi, str_get_mem_fail
-    call a3_print
+    mov byte [gs:0x0+0],'F'
+    mov byte [gs:0x0+2],'A'
+    mov byte [gs:0x0+4],'I'
+    mov byte [gs:0x0+6],'L'
     hlt
 
 ;;------------- Step into the protected mode -------------
-;;; open the A20, addr line expand to 24
 .protected_mode:
+;;;------------- print some words -------------
+    mov byte [gs:0x160+0],'A'
+    mov byte [gs:0x160+2],'3'
+    mov byte [gs:0x160+4],'O'
+    mov byte [gs:0x160+6],'S'
+    mov sp, LOADER_BASE_ADDR
+    mov bp, loader_msg                          ; es:bp for the addr of msg (es is 0 now) 
+    mov cx, 8                                   ; length of loader_msg
+    mov ax, 0x1301                              ; ah=0x13 for print, al for attribute(01:characters only, change the cursor(00 not change))
+                                                ; other attributes in bl(00,01), or in msg(10,11)
+    mov bx, 0x001f                              ; bh:number of page, bl:attribute(1f blue bg, pink char)
+    mov dx, 0x1800                              ; (0,24)
+    int 0x10
+
+;;; open the A20, addr line expand to 24
     in al, 0x92
     or al, 0000_0010b
     out 0x92, al
@@ -224,7 +156,7 @@ p_mode_start:
 
     mov eax, KERNEL_START_SECTOR
     mov ebx, KERNEL_BIN_BASE_ADDR
-    mov ecx, 200
+    mov ecx, 400
     call read_disk
 
     call setup_page
@@ -234,8 +166,8 @@ p_mode_start:
     mov ebx, [GDT_PTR + 2]                      ; GDT_BASE
     or dword [ebx + 0x18 + 4], 0xc0000000       ; reset the video segment descriptor to virtual addr
 
-    add esp, 0xc0000000                         ; reset the stack to the kernel space(virtual addr)
     add dword [GDT_PTR + 2], 0xc0000000         ; pre-reset the GDT_BASE
+    add esp, 0xc0000000                         ; reset the stack to the kernel space(virtual addr)
 
 ;; set the cr3 register
     mov eax, PAGE_DIR_TABLE_POS
@@ -250,48 +182,20 @@ p_mode_start:
 
 ;; reset the GDT to virtual addr   
     lgdt [GDT_PTR]
-    jmp enter_kernel
-enter_kernel:
     mov byte [gs:162], '3'
-
+    jmp SELECTOR_CODE:enter_kernel
+enter_kernel:
     call kernel_init
     mov esp, 0xc009f000
 
+;; I DON'T KNOW WHY BUT IF WE DON'T WAIT FOR A WHILE THERE THE BOOT WILL FAILED
+;; hope someone can explain this for me
+;; arttnba3 2021.10.13
+;; the problem DISAPPEAR AFTER I DELETE SOME OUTPUT SENTENCES, BUT I DON'T KNOW WHY
+;; arttnba3 2021.10.13
+
+
     jmp KERNEL_ENTRY_POINT
-
-;;------------- load the kernel -------------
-kernel_init:
-    xor eax, eax
-    xor ebx, ebx                                ; addr of each Program Header Entry
-    xor ecx, ecx                                ; nums of Program Header Entry
-    xor edx, edx                                ; size of a Program Header Entry
-
-    mov dx, [KERNEL_BIN_BASE_ADDR + 42]         ; e_phentsize, size of each entry in program Header Table
-    mov ebx, [KERNEL_BIN_BASE_ADDR + 28]        ; e_phoff, offset of Program Header Table in the ELF file
-    add ebx, KERNEL_BIN_BASE_ADDR
-    mov cx, [KERNEL_BIN_BASE_ADDR + 44]         ; e_phnum, amount of entries in Program Header Table
-
-.each_segment:
-    cmp dword [ebx], 1                    ; check the p_type
-    jne .PT_IS_NULL                              ; PT_NULL means not used
-    cmp dword [ebx + 4], 0                      ; p_offset is 0, seems useless now?
-    je .PT_IS_NULL
-
-    push dword [ebx + 16]                       ; p_filesz, count
-    
-    mov eax, [ebx + 4]                          ; p_offset
-    add eax, KERNEL_BIN_BASE_ADDR               ; src
-    push eax
-
-    push dword [ebx + 8]                        ; dst, p_vaddr
-    call memcpy
-    
-    add esp, 12                                 ; clear the parameters
-
-.PT_IS_NULL:
-    add ebx, edx
-    loop .each_segment
-    ret
 
 ;;------------- prepare the PDE and PTE -------------
 ;;; clear the space for the page directory table
@@ -346,20 +250,43 @@ setup_page:
     
     ret
 
-;;------------- Some useless data -------------
-    num_byte_count db 0x0
+;;------------- load the kernel -------------
+kernel_init:
+    xor eax, eax
+    xor ebx, ebx                                ; addr of each Program Header Entry
+    xor ecx, ecx                                ; nums of Program Header Entry
+    xor edx, edx                                ; size of a Program Header Entry
 
-    loader_msg  db 'arttnba3', 0x0
-    str_ards_found db ' ards found', 0x0
-    str_ards_max db 'max ards size: ', 0x0
-    str_get_mem_fail db 'failed to get the memory', 0x0
-    str_total_men db 'total mem: ', 0x0
-    hex_num_arr db 'ABCDEF'
+    mov dx, [KERNEL_BIN_BASE_ADDR + 42]         ; e_phentsize, size of each entry in program Header Table
+    mov ebx, [KERNEL_BIN_BASE_ADDR + 28]        ; e_phoff, offset of Program Header Table in the ELF file
+    add ebx, KERNEL_BIN_BASE_ADDR
+    mov cx, [KERNEL_BIN_BASE_ADDR + 44]         ; e_phnum, amount of entries in Program Header Table
+
+.each_segment:
+    cmp byte [ebx + 0], PT_NULL                          ; check the p_type
+    je .PT_IS_NULL                             ; PT_NULL means not used
+    ;cmp dword [ebx + 4], 0                      ; p_offset is 0, seems useless now?
+    ;je .PT_IS_NULL
+
+    push dword [ebx + 16]                       ; p_filesz, count
+    
+    mov eax, [ebx + 4]                          ; p_offset
+    add eax, KERNEL_BIN_BASE_ADDR               ; src
+    push eax
+
+    push dword [ebx + 8]                        ; dst, p_vaddr
+    call memcpy
+    
+    add esp, 12                                 ; clear the parameters
+
+.PT_IS_NULL:
+    add ebx, edx
+    loop .each_segment
+    ret
 
 ;;------------- basic memcpy -------------
 ;;; parameters passed by stack
 memcpy:
-    cld
     push ebp
     mov ebp, esp
     push ecx
@@ -367,6 +294,7 @@ memcpy:
     mov edi, [ebp + 8]                          ; dst
     mov esi, [ebp + 12]                         ; src
     mov ecx, [ebp + 16]                         ; count
+    cld
     rep movsb
 
     pop ecx
