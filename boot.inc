@@ -39,11 +39,20 @@ DESC_TYPE_DATA_W equ 0010_00000000b             ; type flag for data segment,
                                                 ; Writable
 
 ;;------------- package macros for GDT descriptor (high 32 bit) -------------
-MACRO_DESC_CODE equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L_32 + DESC_AVL + DESC_LIMIT_CODE + DESC_P + DESC_DPL_RING_0 + DESC_S_CODE + DESC_TYPE_CODE_X + 0x00
+MACRO_DESC_CODE equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + \
+            DESC_L_32 + DESC_AVL + DESC_LIMIT_CODE + \
+            DESC_P + DESC_DPL_RING_0 + DESC_S_CODE + \
+            DESC_TYPE_CODE_X + 0x00
 
-MACRO_DESC_DATA equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L_32 + DESC_AVL + DESC_LIMIT_DATA + DESC_P + DESC_DPL_RING_0 + DESC_S_DATA + DESC_TYPE_DATA_W + 0x00
+MACRO_DESC_DATA equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + \
+            DESC_L_32 + DESC_AVL + DESC_LIMIT_DATA + \
+            DESC_P + DESC_DPL_RING_0 + DESC_S_DATA + \
+            DESC_TYPE_DATA_W + 0x00
 
-MACRO_DESC_VIDEO equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L_32 + DESC_AVL + DESC_LIMIT_VIDEO + DESC_P + DESC_DPL_RING_0 + DESC_S_DATA + DESC_TYPE_DATA_W + 0x0b
+MACRO_DESC_VIDEO equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + \
+            DESC_L_32 + DESC_AVL + DESC_LIMIT_VIDEO + \
+            DESC_P + DESC_DPL_RING_0 + DESC_S_DATA + \
+            DESC_TYPE_DATA_W + 0x0b
 
 ;------------- attributes for segment selector -------------
 RPL_RING0 equ 00b
